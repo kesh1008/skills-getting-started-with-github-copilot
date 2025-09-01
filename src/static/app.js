@@ -18,18 +18,18 @@ document.addEventListener("DOMContentLoaded", () => {
         const activityCard = document.createElement("div");
         activityCard.className = "activity-card";
 
-        const spotsLeft = details.max_participants - details.participants.length;
+        const spotsLeft = details.max_participants - Object.keys(details.participants).length;
 
         // Participants list HTML
         let participantsHTML = "";
-        if (details.participants.length > 0) {
+        if (Object.keys(details.participants).length > 0) {
           participantsHTML = `
             <div class="participants-section">
               <strong>Participants:</strong>
               <ul class="participants-list" style="list-style-type: none; padding-left: 0;">
-                ${details.participants.map(email => `
+                ${Object.entries(details.participants).map(([email, phone]) => `
                   <li style="display: flex; align-items: center; gap: 8px;">
-                    <span>${email}</span>
+                    <span>${email} (${phone})</span>
                     <span class="delete-participant" data-activity="${encodeURIComponent(name)}" data-email="${encodeURIComponent(email)}" title="Remove participant" style="cursor:pointer;color:#c62828;font-weight:bold;font-size:18px;">&times;</span>
                   </li>
                 `).join("")}
@@ -93,11 +93,12 @@ document.addEventListener("DOMContentLoaded", () => {
     event.preventDefault();
 
     const email = document.getElementById("email").value;
+    const phone = document.getElementById("phone").value;
     const activity = document.getElementById("activity").value;
 
     try {
       const response = await fetch(
-        `/activities/${encodeURIComponent(activity)}/signup?email=${encodeURIComponent(email)}`,
+        `/activities/${encodeURIComponent(activity)}/signup?email=${encodeURIComponent(email)}&phone=${encodeURIComponent(phone)}`,
         {
           method: "POST",
         }
