@@ -5,13 +5,11 @@ A super simple FastAPI application that allows students to view and sign up
 for extracurricular activities at Mergington High School.
 """
 
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import RedirectResponse
-from motor.motor_asyncio import AsyncIOMotorClient
 import os
 from pathlib import Path
-from typing import List
 
 app = FastAPI(title="Mergington High School API",
               description="API for viewing and signing up for extracurricular activities")
@@ -21,16 +19,8 @@ current_dir = Path(__file__).parent
 app.mount("/static", StaticFiles(directory=os.path.join(Path(__file__).parent,
           "static")), name="static")
 
-# MongoDB connection
-client = AsyncIOMotorClient('mongodb://localhost:27017')
-db = client.mergington_high
-
-# Dependency to get database collection
-async def get_activities_collection():
-    return db.activities
-
-# Keeping this commented out as reference
-_activities = {
+# In-memory activity database
+activities = {
     "Chess Club": {
         "description": "Learn strategies and compete in chess tournaments",
         "schedule": "Fridays, 3:30 PM - 5:00 PM",
@@ -97,14 +87,27 @@ def root():
 
 
 @app.get("/activities")
-async def get_activities(collection = Depends(get_activities_collection)):
-    """Get all activities"""
-    cursor = collection.find({}, {'_id': 0})  # Exclude MongoDB _id field
-    activities_list = await cursor.to_list(length=None)
-    
-    # Convert to the expected format with activity name as key
-    return {activity["name"]: {k: v for k, v in activity.items() if k != "name"} 
-            for activity in activities_list}
+def get_activities():
+    return activities
+
+@app.post("/activities/{activity_name}/signup")
+def signup_for_activity(activity_name: str, email: str):
+    """Sign up a student for an activity"""
+    # Validate activity exists
+    if activity_name not in activities:
+        raise HTTPException(status_code=404, detail="Activity not found")
+
+    # Get the specific activity
+    activity = activities[activity_name]
+    # Validate student is not already signed up
+    if email in activity["participants"]:
+        raise HTTPException(status_code=400, detail="Student already signed up for this activity")
+    # Validate activity is not full
+    if len(activity["participants"]) >= activity["max_participants"]:
+        raise HTTPException(status_code=400, detail="Activity is full")
+    # Add student
+    activity["participants"].append(email)
+    return {"message": f"Signed up {email} for {activity_name}"}
 
 
 @app.post("/activities/{activity_name}/signup")
